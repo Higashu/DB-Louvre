@@ -1,0 +1,119 @@
+@startuml
+hide circle
+
+Class Oeuvres {
+    Titre : String {Key}
+    Date de création : Date {Nullable}
+    Prix d'acquisition : Float
+}
+
+Class Photographies {
+    Largeur : float
+    Hauteur : float
+}
+
+Class Sculptures {
+    Hauteur : float
+}
+
+Class Peintures {
+    Largeur : float
+    Hauteur : float
+}
+
+Class Auteurs {
+    Nom : String {Key}
+    Prenom : String {Key}
+    DateNaissance : Date {Key}
+    DateDeces : Date {Nullable}
+}
+
+Class Restaurations {
+    Type restauration : String
+    Date debut : Date
+    Date fin : Date {Nullable}
+    Prix : Float
+}
+
+Class Prestataires {
+    Nom : String {Key}
+    Adresse : String
+}
+
+Class MuseesExterieurs{
+    Nom : String {Key}
+    Adresse : String
+}
+
+Class Prete {
+    Date debut : Date
+    Date fin : Date
+}
+
+Class Emprunte {
+    Date debut : Date
+    Date fin : Date
+}
+
+Class Expositions {
+    Nom : String {Key}
+}
+
+Class Permanentes {
+
+}
+
+Class Temporaires {
+    Date debut : Date
+    Date fin : Date
+}
+
+Class Panneaux {
+    Numero : Integer {Key}
+    Texte : String
+}
+
+Class Salles {
+    Numero : Integer {Key}
+    Capacite : Integer
+}
+
+Class Guides {
+    Identifiant : Integer {Key}
+    Nom : String
+    Prenom : String
+    Adresse : String
+    Date Embauche : Date
+}
+
+Class Creneaux {
+    Jour : String {Key}
+    Debut : Time {Key}
+    Fin : Time
+}
+
+Expositions <|-down- Permanentes
+Expositions <|-down- Temporaires
+Expositions *-left- Oeuvres
+
+Expositions "O..1"-left-"1..N" Salles : Occupe
+Expositions *-up- Panneaux
+Panneaux "0..N"-up-"1..1" Salles : Se situe
+
+
+Oeuvres "0..N"-up-"0..N" Auteurs : Réalise
+Oeuvres <|-up- Photographies
+Oeuvres <|-up- Sculptures
+Oeuvres <|-up- Peintures
+Oeuvres "0..N"-up-"0..N" MuseesExterieurs : Prête
+Oeuvres "0..N"-up-"0..N" MuseesExterieurs : Emprunte
+(Oeuvres,MuseesExterieurs).Emprunte
+(Oeuvres,MuseesExterieurs).Prete
+Oeuvres "1"-left-"O..N" Restaurations : Concerne
+
+Restaurations "0..N"-down-"1..1" Prestataires : Est réalisée
+
+Guides "0..N"-up-"0..N" Temporaires : travail_temp
+Creneaux "0..N"-up- "1..1" Permanentes : Concerne
+Guides "0..N"-up-"1..N" Creneaux : travail_perm
+@enduml

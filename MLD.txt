@@ -1,0 +1,289 @@
+Oeuvres (#titre : str, date_creation : date, prix_acquisition : float, 
+         hauteur : float, largeur : float, 
+         type : {peinture, photographie, sculpture})
+
+titre => (date_creation, prix_acquisition, hauteur, largeur, type)
+La relation est en BCNF.
+
+______________________________________________________________________________________________________________
+
+Auteurs (#nom : str, #prenom : str, #date_naissance : date, date_deces : date )
+
+(nom, prenom, date_naissance) => date_deces
+La relation est en BCNF.
+
+_______________________________________________________________________________________________________________
+
+Realise (#nom => Auteurs(nom), #prenom => Auteurs(prenom), #date_naissance => Auteurs(date_naissance)
+         #oeuvre => Oeuvres(titre) )
+
+La relation est en BCNF.
+
+_______________________________________________________________________________________________________________
+
+Prestataires    (#nom : str, adresse : JSON)
+L'attribut JSON permet d'avoir le champ numéro de voirie, ville et code postale dans un seul attribut 
+au lieu d'avoir 1 attribut par information, ou une table adresse.
+
+nom => adresse
+adresse => nom
+L'adresse n'est pas multivaluée.
+La relation est donc en 3NF.
+
+_______________________________________________________________________________________________________________
+
+Restaurations   (#id_restauration : int, type_restauration : str, date_debut : date, date_fin : date,
+                 prix : float, oeuvre => Oeuvres(titre), prestataire => Prestataires(nom) )
+
+id_restauration => (type_restauration, date_debut, date_fin, prix, oeuvre, prestataire)
+La relation est en BCNF.
+
+_______________________________________________________________________________________________________________
+
+Expositions (#nom : str, date_debut : date, date_fin : date, type : {Temp, Perm}, oeuvre : JSON, guide : JSON )
+L'attribut JSON oeuvre, permet de lister toutes les oeuvres et les guides d'une exposition, on utilise du JSON car dans une exposition
+il y a plusieurs oeuvre et guide qui peuvent y travailler, ces attributs sont donc multivalués. 
+On a donc sur la table exposition toutes les informations centralisées et en plus de cela on supprime la classe association entre Creneaux et Expositions.
+
+guide et oeuvre sont multivaluées.
+La relation est en 0NF.
+
+_______________________________________________________________________________________________________________
+
+Salles  (#numero : int, capacite : int, exposition => Expositions(nom) )
+
+numero => (capacite, exposition)
+La relation est en BCNF.
+
+_______________________________________________________________________________________________________________
+
+Panneaux    (#numero : int, texte : str, exposition => Expositions(nom), salle => Salles(numero) )
+
+numero => (texte, exposition, salle)
+exposition => salle
+salle => exposition
+La relation est en 2NF.
+
+_______________________________________________________________________________________________________________
+
+Creneaux (#jour : {Lu, Mer, Je, Ven, Sam, Dim}, #debut : time, fin : time, #exposition => Expositions(nom) )
+
+(jour, debut, exposition) => fin
+La relation est en BCNF.
+
+_______________________________________________________________________________________________________________
+
+Guides  (#identifiant : int, nom : str, prenom : str, adresse : JSON, date_embauche : date, creneau : JSON )
+L'attribut adresse JSON permet d'avoir le champ numéro de voirie, ville et code postale dans un seul attribut 
+au lieu d'avoir 1 attribut par information, ou une table adresse.
+L'attribut Creneau permet d'avoir sur une seule table tous les créneaux du guide, cela supprime la classe association
+entre Guides et Creneaux.
+
+L'attribut creneau est multivaluée.
+La relation est en 0NF.
+
+_______________________________________________________________________________________________________________
+
+Musees_Exterieurs   ( #nom : str, adresse : JSON)
+L'attribut JSON permet d'avoir le champ numéro de voirie, ville et code postale dans un seul attribut 
+au lieu d'avoir 1 attribut par information, ou une table adresse.
+
+nom => adresse
+adresse => nom
+L'adresse n'est pas multivaluée.
+La relation est donc en 3NF.
+
+_______________________________________________________________________________________________________________
+
+Prete       (date_debut : Date, date_fin : Date, #musee => Musees_Exterieurs(nom), #oeuvre => Oeuvres(titre) )
+
+(musse, oeuvre) => (date_debut, date_fin)
+La relation est en BCNF.
+
+_______________________________________________________________________________________________________________
+Emprunte    (date_debut : Date, date_fin : Date, #musee_emprunteur => Musees_Exterieurs(nom), #oeuvre => Oeuvres(titre) )  
+ 
+(musse, oeuvre) => (date_debut, date_fin)
+La relation est en BCNF.
+
+
+
+
+
+                                    CONTRAINTES COMPLIQUEES
+
+
+
+CC1 : Toutes les oeuvres d'une exposition temporaire sont empruntées
+
+R1 = Restriction (Expositions, type='perm')
+R2 = Difference (R1.oeuvre->>'titre',Emprunte.oeuvre) = {}
+
+_______________________________________________________________________________________________________________
+
+CC2 : Toutes les oeuvres d'une exposition permanente appartiennent au Louvre
+
+R1 = Restriction (Expositions, type='temp')
+R2 = Intersection (R1.oeuvre->>'titre',Emprunte.oeuvre) = {}
+
+_______________________________________________________________________________________________________________
+
+CC3 : Une oeuvre empruntée ne peut as être prêtée
+
+R1 = Jointure (Emprunte, Prete, Emprunte.oeuvre = Prete.oeuvre) = {}
+_______________________________________________________________________________________________________________
+
+CC4 :Une oeuvre en cours de prêt ne peut pas être envoyée en Restauration
+
+R1 = Jointure (Prete,Restaurations, Prete.oeuvre = Restaurations.oeuvre)
+R2 = Restriction (R1, (R1.date_debut > Restaurations.date_debut AND (R1.date_debut < Restaurations.date_fin) OR Restauration.date_fin IS NULL ) )= {}
+_______________________________________________________________________________________________________________
+
+CC5 :Une oeuvre en restauration ne peut pas être prêtée
+
+R1 = Jointure (Restaurations,Prete, Restaurations.oeuvre = Prete.oeuvre)
+R1 = Restriction (R1, (Prete.date_debut < Restaurations.date_debut AND Prete.date_debut > Restaurations.date_fin)) = {}
+
+_______________________________________________________________________________________________________________
+
+CC6 : Une expo temporaire a sa date de fin égale a la plus grande date de fin d'emprunt des oeuvres qui y sont exposées
+
+R1 = Jointure (Expositions,Emprunte,Expositions.oeuvre->>'titre' = Emprunte.oeuvre)
+R2 = Restriction (R2, Expositions.type = 'temp')
+R3 = Restriction (R3, (Expositions.date_fin != Emprunte.date_fin AND Exposition.date_fin < Emprunte.date_fin )) = {}
+
+_______________________________________________________________________________________________________________
+
+CC7 : Toute exposition a au moins une salle dédiée
+
+R1 = Difference (Expositions.nom, Salles.exposition) = {}
+
+_______________________________________________________________________________________________________________
+
+CC8 : La salle et le panneau sont reliés à la même exposition
+
+R1 = Jointure (Salles, Panneaux, Salles.exposition != Panneaux.exposition)
+R2 = Restriction (R1, Salles.numero = Panneaux.salle) = {}
+
+_______________________________________________________________________________________________________________
+
+CC9 : Toute exposition comporte au moins 1 panneau
+
+R1 = Difference (Expositions.nom,Panneaux.exposition) = {}
+
+_______________________________________________________________________________________________________________
+
+CC10 : Les créneaux sont associés qu'à des expositions permanentes
+
+R1 = Jointure (Creneaux,Expositions,Creneaux.exposition = Expositions.nom)
+R2 = Restriction (R1, Expositions.type != 'perm') = {}
+
+_______________________________________________________________________________________________________________
+
+CC11 : Le nom des oeuvre dans la table expositions doivent exister dans la table oeuvres
+
+R1 = Difference (Expositions.oeuvre->>'titre',Oeuvres.titre) = {}
+
+_______________________________________________________________________________________________________________
+
+CC12 : Le nom,prenom et id des guides dans la table Expositions doivent exister dans la table Guides
+
+R1 = Restriction (Guides, (Guides.prenom = Expositions.guide->>'prenom' AND Guides.identifiant = Expositions.guide->>'id'))
+R2 = Difference (Expositions.guide->>'nom',R1.nom) = {}
+
+_______________________________________________________________________________________________________________
+
+CC13 : 
+
+R1 = Restriction (Creneaux, (Creneaux.debut = Guides.creneau->>'heure' AND Creneaux.exposition = Guides.creneau->>'expo'))
+R2 = Difference (Guides.creneau->>'jour',R1.jour) = {}
+
+_______________________________________________________________________________________________________________
+
+Dans la table expositions :
+CHECK(date_fin > date_debut)
+Une exposition permanente n'a pas de date de debut et de fin et n'a aucun guide attitré
+CHECK ( [ date_debut IS NULL AND date_fin IS NULL AND type = 'perm' AND guide IS NULL ] OR  [date_debut IS NOT NULL AND date_fin IS NOT NULL AND type = 'temp' )
+
+_______________________________________________________________________________________________________________
+
+Dans la table Oeuvres :
+On ne renseigne pas la largeur d'une sculpture
+CHECK( Largeur IS NULL and type = 'sculpture' OR Largeur IS NOT NULL and type != 'sculpture')
+
+_______________________________________________________________________________________________________________
+
+Dans la table Auteurs :
+CHECK (date_naissance < date_deces OR date_deces IS NULL)
+
+_______________________________________________________________________________________________________________
+
+Dans la table Restaurations
+CHECK(date_fin > date_debut)
+
+_______________________________________________________________________________________________________________
+
+Dans la table Creneaux :
+Les guides commencent à 09h et finissent à 18h
+CHECK (debut >= '09:00' AND debut <= '16:00')
+Un créneau dure deux heures
+CHECK ( fin = debut + interval '2 hours')
+
+_______________________________________________________________________________________________________________
+
+Dans la table Prete :
+CHECK(date_fin > date_debut)
+
+_______________________________________________________________________________________________________________
+
+Dans la table Emprunte :
+CHECK(date_fin > date_debut)
+
+
+                                    VUES
+
+info_guide : affiche les informations sur les guides correctement présenté
+
+prestataire_detaillée : affiche les informations sur les prestataires correctement présenté
+
+musees_exterieurs_detaillée : affiche les informations sur les musees exterieurs correctement présenté
+
+exposition_oeuvre : Affiche l'exposition dans laquelle se situe une oeuvre
+
+peinture : affiche toutes les peintures présentes au musée
+
+photographie : affiche toutes les photographies présentes au musée
+
+sculpture : affiche toutes les sculptures présentes au musée
+
+prix_moyen_oeuvre_confondu : affiche la moyenne du prix d'acquisition des oeuvres en fonction du type d'oeuvre
+
+prix_moyen_oeuvre_par_exposition : affiche le prix moyens des oeuvres par exposition
+
+duree_moyenne_emprunt : affiche la durée moyenne des empruntées
+
+duree_moyenne_pret : affiche la durée moyenne des prêts
+
+Oeuvre_en_cours_demprunt : affiche toutes les oeuvres actuellement empruntées
+
+oeuvre_en_cours_de_restauration : affiche toutes les oeuvres en cours de restauration
+
+oeuvre_pretee : affiche toutes les oeuvres actuellement prêtées
+
+exposition_temporaire : affiche toutes les expositions temporaires qui ont eu lieu.
+
+exposition_temporaire_en_cours : affiche toutes les expositions temporaire du duree_moyenne_emprunt
+
+exposition_permanente : affiche toutes les expositions permanentes
+
+oeuvre_restaure_par_prestataire : affiche le nombre d'oeuvre restauré par prestataire
+
+prix_moyen_restauration : affiche le prix moyen d'une restauration
+
+guide_sur_expo_temporaire : affiche tous les guides travaillant actuellement sur une expo temporaire
+
+nombre_guide_expo_temp : affiche le nombre de guide travaillant sur chaque exposition temporaire
+
+nombre_guide_sur_creneau : affiche le nombre de guide affecté à chaque créneau
+
+heure_travaillee_par_guide : affiche les heures de travails de chaque guide
